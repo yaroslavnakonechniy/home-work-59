@@ -1,26 +1,25 @@
 import fs, { existsSync } from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { access } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
+import crypto from 'node:crypto';
 
 
 async function compressFile(filePath) {
 
-    if (!existsSync(filePath)) {
-        throw new Error(`Вхідний файл не знайдено: ${filePath}`);
+    try {
+      await access(filePath, fs.F_OK);
+    } catch {
+      throw new Error(`Вхідний файл не знайдено: ${filePath}`);
     }
 
     const dir = path.dirname(filePath);
     const ext = path.extname(filePath);
-    const name = path.basename(filePath, ext);
+    const fileName = path.basename(filePath, ext);
+    const newFileName = `${fileName}+${Date.now()}+${crypto.randomBytes(16).toString('hex')}`;
 
-    let outputPath = path.join(dir, `${name}.gz`);
-
-    let counter = 1;
-    while (existsSync(outputPath)) {
-      outputPath = path.join(dir, `${name}(${counter})${ext}.gz`);
-      counter++;
-    }
+    let outputPath = path.join(dir, `${newFileName}.gz`);
 
     const readStream = fs.createReadStream(filePath);
     const gzip = zlib.createGzip();
@@ -33,8 +32,10 @@ async function compressFile(filePath) {
 }
 
 async function decompressFile(compressedFilePath, destinationFilePath) {
-    if (!existsSync(compressedFilePath)) {
-      throw new Error(`Файл не знайдено: ${compressedFilePath}`);
+    try {
+      await access(compressedFilePath, fs.F_OK);
+    } catch {
+      throw new Error(`Вхідний файл не знайдено: ${filePath}`);
     }
 
     if (path.extname(compressedFilePath) !== '.gz') {
@@ -43,15 +44,11 @@ async function decompressFile(compressedFilePath, destinationFilePath) {
 
     const dir = path.dirname(destinationFilePath);
     const ext = path.extname(destinationFilePath);
-    const name = path.basename(destinationFilePath, ext);
+    const fileName = path.basename(destinationFilePath, ext);
 
-    let outputPath = destinationFilePath;
+    const newFileName = `${fileName}+${Date.now()}+${crypto.randomBytes(16).toString('hex')}`;
 
-    let counter = 1;
-    while (existsSync(outputPath)) {
-      outputPath = path.join(dir, `${name}(${counter})${ext}`);
-      counter++;
-    }
+    let outputPath = path.join(dir, `${newFileName}.txt`);
 
     const readStream = fs.createReadStream(compressedFilePath);
     const gunzip = zlib.createGunzip();
@@ -64,11 +61,11 @@ async function decompressFile(compressedFilePath, destinationFilePath) {
 
 async function performCompressionAndDecompression() {
   try {
-    const compressedResult = await compressFile('./files/source.txt')
-    //const compressedResult = await compressFile('./my-data.txt')
+    //const compressedResult = await compressFile('./files/source.txt')
+    const compressedResult = await compressFile('./my-data.txt')
     console.log(compressedResult)
-    const decompressedResult = await decompressFile(compressedResult, './files/source_decompressed.txt')
-    //const decompressedResult = await decompressFile(compressedResult, './my-data-d.txt')
+    //const decompressedResult = await decompressFile(compressedResult, './files/source_decompressed.txt')
+    const decompressedResult = await decompressFile(compressedResult, './my-data-d.txt')
     console.log(decompressedResult)
   } catch (error) {
     console.error('Error during compression or decompression:', error)
